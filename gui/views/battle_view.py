@@ -8,66 +8,17 @@
 import arcade
 import random
 import math
-import time
-import pygame
-from PIL import Image, ImageDraw, ImageFont
 from models.army import TroopType, Terrain, Army
-from models.general import Skill
 from gui.constants import WHITE, BLACK, RED, GREEN, BLUE, GOLD, BACKGROUND_COLOR
 from gui.ui.button import Button
 
 class BattleView(arcade.View):
-    """
-    战斗界面视图
-    
-    注意：此处只提供了框架，实际实现需要将views.py中的完整BattleView类代码复制过来
-    包括以下主要方法:
-    - __init__: 初始化战斗视图
-    - setup_battle: 设置战斗界面
-    - on_show: 显示视图时调用
-    - on_draw: 绘制界面
-    - draw_battlefield_elements: ,绘制战场元素
-    - draw_battlefield_background: 绘制战场背景
-    - draw_army: 绘制军队
-    - draw_battle_lines: 绘制战线
-    - draw_battle_controls: 绘制战斗控制
-    - draw_battle_log: 绘制战斗日志
-    - draw_battle_info: 绘制战斗信息
-    - on_mouse_motion: 处理鼠标移动
-    - on_mouse_press: 处理鼠标点击
-    - toggle_animations: 切换动画
-    - create_attack_animation: 创建攻击动画
-    - next_battle_phase: 进入下一战斗阶段
-    - simulate_ranged_combat: 模拟远程战斗
-    - simulate_melee_combat: 模拟近战战斗
-    - add_skill_effect: 添加技能效果
-    - add_general_victory_effect: 添加将领胜利效果
-    - create_melee_combat_animations: 创建近战战斗动画
-    - calculate_army_center: 计算军队中心
-    - create_blood_effects: 创建血液效果
-    - simulate_pursuit_phase: 模拟追击阶段
-    - auto_battle: 自动战斗
-    - retreat: 撤退
-    - end_battle: 结束战斗
-    - on_key_press: 处理键盘按键
-    - load_effect_textures: 加载效果纹理
-    - load_general_portraits: 加载将领肖像
-    - draw_animations: 绘制动画
-    - draw_generals: 绘制将领
-    - draw_generals_on_battlefield: 在战场上绘制将领
-    - check_mouse_hover: 检查鼠标悬停
-    - check_mouse_press: 检查鼠标点击
-    - release_button: 释放按钮
-    - load_soldier_textures: 加载士兵纹理
-    - create_simple_soldier_texture: 创建简单士兵纹理
-    - check_battle_end: 检查战斗结束
-    - create_blood_effects: 创建血液效果
-    """
+    """战斗界面视图"""
     
     def __init__(self, game_window, window_size, player, battle_data):
         """初始化战斗视图"""
         super().__init__()  # arcade.View只需要简单初始化，不需要参数
-        self.game_window = game_window
+        self.window = game_window  # 游戏窗口，用于返回主菜单等操作
         self.window_size = window_size
         self.player = player
         self.battle_data = battle_data
@@ -76,11 +27,6 @@ class BattleView(arcade.View):
         self.attacker_general = battle_data.attacker_general
         self.defender_general = battle_data.defender_general
         
-        # 初始化字体对象
-        # self.font_small = arcade.font.SysFont("SimHei", 14)
-        # self.font_medium = arcade.font.SysFont("SimHei", 18)
-        # self.screen = game_window.get_screen()  # 获取游戏窗口屏幕对象供pygame绘图
-        
         # 战场位置设置
         self.attacker_positions = []  # 存储攻击方部队位置和引用
         self.defender_positions = []  # 存储防御方部队位置和引用
@@ -88,137 +34,217 @@ class BattleView(arcade.View):
         # 战斗状态
         self.battle_phase = "准备"  # 准备, 远程, 近战, 追击, 撤退
         self.battle_log = []
-        self.phase_buttons = []
-        self.animations = []
-        self.animation_enabled = True  # 是否启用动画
-        self.animation_speed = 1.0     # 动画速度
-        self.current_round = 1  # 当前回合数
-        self.max_rounds = 5  # 最大回合数
+        self.buttons = []
         
         # 加载背景图
         try:
-            self.background_texture = arcade.load_texture("assets/images/backgrounds/battlefield.jpg")
+            self.background_texture = arcade.load_texture("resources/battlefield.jpg")
         except:
             self.background_texture = None
         
-        # 士兵纹理
-        self.soldier_textures = {}  # 用于存储不同兵种的士兵纹理
+        # 创建返回按钮
+        back_button = Button(
+            100, 50, 150, 50, "返回", 
+            bg_color=(100, 100, 100), hover_color=(150, 150, 150)
+        )
+        self.buttons.append(back_button)
         
-        # 特效纹理
-        self.effect_textures = {
-            "arrow": None,
-            "fire": None,
-            "sword": None,
-            "shield": None
-        }
+        # 添加初始战斗日志
+        self.battle_log.append("战斗开始！")
+        self.battle_log.append(f"进攻方: {self.attacker.size}兵力")
+        self.battle_log.append(f"防守方: {self.defender.size}兵力")
         
-        # 将领肖像
-        self.general_portraits = {}
-        
-        # 初始化战场
-        self.setup_battle()
+        # 设置部队位置
+        self.setup_armies()
     
-    def setup_battle(self):
-        """设置战斗界面"""
-        # 此处应该包含完整的setup_battle方法实现
-        # 从views.py中复制过来
-        pass
-    
-    def on_show(self):
-        """显示视图时调用"""
-        arcade.set_background_color(BACKGROUND_COLOR)
-    
-    def on_draw(self, delta_time=0):
-        """绘制界面"""
-        arcade.start_render()
-        # 此处应该包含完整的on_draw方法实现
-        # 从views.py中复制过来
-        pass
-    
-    def on_mouse_motion(self, x, y, dx, dy):
-        """处理鼠标移动"""
-        # 此处应该包含完整的on_mouse_motion方法实现
-        # 从views.py中复制过来
-        pass
-    
-    def on_mouse_press(self, x, y, button, modifiers):
-        """处理鼠标点击"""
-        # 此处应该包含完整的on_mouse_press方法实现
-        # 从views.py中复制过来
-        pass
-    
-    def on_key_press(self, key, modifiers):
-        """处理键盘按键"""
-        if key == arcade.key.ESCAPE:
-            from three_kingdoms_arcade import MainMenuView
-            main_menu_view = MainMenuView(self.player.game)
-        # 清理旧数据
-        self.attacker_positions = []
-        self.defender_positions = []
-        self.battle_log = []
-        self.phase_buttons = []
-        self.animations = []
-        
-        # 加载各类纹理和资源
-        self.load_effect_textures()  # 加载特效纹理
-        self.load_soldier_textures()  # 加载士兵纹理
-        
-        # 加载将军肖像
-        if self.attacker_general:
-            self.load_general_portraits()
-        
+    def setup_armies(self):
+        """设置军队位置"""
         # 战场中心位置
         battlefield_center_x = self.window_size[0] / 2
         battlefield_center_y = self.window_size[1] / 2
         
-        # 部署进攻方军队 - 采用更分散的阵型
+        # 部署进攻方军队
         attacker_base_x = battlefield_center_x - 200  # 进攻方在左侧
+        self.attacker_positions.append((attacker_base_x, battlefield_center_y, self.attacker))
         
-        # 将进攻方军队分成多个单位，每个单位最多500兵力，更小的单位便于混战展示
-        y_offset = 0
-        remaining_troops = self.attacker.size
-        while remaining_troops > 0:
-            unit_size = min(500, remaining_troops)
-            unit = Army(
-                size=unit_size,
-                primary_type=self.attacker.primary_type,
-                secondary_type=self.attacker.secondary_type,
-                morale=self.attacker.morale,
-                training=self.attacker.training
-            )
-            
-            # 创建更加随机化的阵型
-            row = y_offset // 4
-            col = y_offset % 4
-            random_offset_x = random.uniform(-40, 40)
-            random_offset_y = random.uniform(-30, 30)
-            
-            unit_x = attacker_base_x - 80 + col * 100 + random_offset_x
-            unit_y = battlefield_center_y - 150 + row * 80 + random_offset_y
-            
-            self.attacker_positions.append((unit_x, unit_y, unit))
-            remaining_troops -= unit_size
-            y_offset += 1
-        
-        # ... 以下是BattleView的其他方法 ...
-        # 注意：这里省略了大量代码，实际应该包含BattleView的所有方法
+        # 部署防守方军队
+        defender_base_x = battlefield_center_x + 200  # 防守方在右侧
+        self.defender_positions.append((defender_base_x, battlefield_center_y, self.defender))
     
     def on_show(self):
         """显示视图时调用"""
         arcade.set_background_color(BACKGROUND_COLOR)
     
-    def on_draw(self, delta_time=0):
+    def on_draw(self):
         """绘制界面"""
         arcade.start_render()
-        # ... 绘制代码 ...
+        
+        # 绘制背景
+        if self.background_texture:
+            arcade.draw_texture_rectangle(
+                self.window_size[0] // 2, self.window_size[1] // 2,
+                self.window_size[0], self.window_size[1],
+                self.background_texture
+            )
+        
+        # 绘制战场背景
+        self.draw_battlefield_background()
+        
+        # 绘制军队
+        self.draw_armies()
+        
+        # 绘制战斗日志
+        self.draw_battle_log()
+        
+        # 绘制按钮
+        for button in self.buttons:
+            button.draw()
+    
+    def draw_battlefield_background(self):
+        """绘制战场背景"""
+        # 绘制战场区域
+        battlefield_color = (100, 180, 100, 150)  # 半透明绿色（草地）
+        if hasattr(self.battle_data, 'terrain'):
+            # 根据地形调整颜色
+            if self.battle_data.terrain == Terrain.MOUNTAIN:
+                battlefield_color = (150, 150, 150, 150)  # 山地灰色
+            elif self.battle_data.terrain == Terrain.FOREST:
+                battlefield_color = (60, 120, 60, 150)  # 森林深绿
+            elif self.battle_data.terrain == Terrain.RIVER:
+                battlefield_color = (100, 150, 200, 150)  # 河流蓝色
+        
+        # 绘制战场区域
+        arcade.draw_rectangle_filled(
+            self.window_size[0] // 2, self.window_size[1] // 2,
+            800, 400, battlefield_color
+        )
+        arcade.draw_rectangle_outline(
+            self.window_size[0] // 2, self.window_size[1] // 2,
+            800, 400, WHITE, 2
+        )
+        
+        # 绘制标题
+        arcade.draw_text(
+            "战场",
+            self.window_size[0] // 2, self.window_size[1] - 50,
+            GOLD, font_size=36, font_name=("SimHei", "Microsoft YaHei"),
+            anchor_x="center"
+        )
+        
+        # 绘制战斗阶段
+        arcade.draw_text(
+            f"当前阶段: {self.battle_phase}",
+            self.window_size[0] // 2, self.window_size[1] - 100,
+            WHITE, font_size=24, font_name=("SimHei", "Microsoft YaHei"),
+            anchor_x="center"
+        )
+    
+    def draw_armies(self):
+        """绘制军队"""
+        # 绘制进攻方
+        for x, y, army in self.attacker_positions:
+            # 绘制军队圆形
+            arcade.draw_circle_filled(x, y, 50, (200, 50, 50, 180))
+            arcade.draw_circle_outline(x, y, 50, WHITE, 2)
+            
+            # 绘制兵力数量
+            arcade.draw_text(
+                f"{army.size}",
+                x, y,
+                WHITE, font_size=18, font_name=("SimHei", "Microsoft YaHei"),
+                anchor_x="center", anchor_y="center"
+            )
+            
+            # 绘制兵种
+            arcade.draw_text(
+                f"{army.primary_type.value}",
+                x, y - 25,
+                WHITE, font_size=14, font_name=("SimHei", "Microsoft YaHei"),
+                anchor_x="center"
+            )
+        
+        # 绘制防守方
+        for x, y, army in self.defender_positions:
+            # 绘制军队圆形
+            arcade.draw_circle_filled(x, y, 50, (50, 50, 200, 180))
+            arcade.draw_circle_outline(x, y, 50, WHITE, 2)
+            
+            # 绘制兵力数量
+            arcade.draw_text(
+                f"{army.size}",
+                x, y,
+                WHITE, font_size=18, font_name=("SimHei", "Microsoft YaHei"),
+                anchor_x="center", anchor_y="center"
+            )
+            
+            # 绘制兵种
+            arcade.draw_text(
+                f"{army.primary_type.value}",
+                x, y - 25,
+                WHITE, font_size=14, font_name=("SimHei", "Microsoft YaHei"),
+                anchor_x="center"
+            )
+        
+        # 绘制将领信息
+        if self.attacker_general:
+            arcade.draw_text(
+                f"将领: {self.attacker_general.name}",
+                self.attacker_positions[0][0], self.attacker_positions[0][1] + 80,
+                GOLD, font_size=18, font_name=("SimHei", "Microsoft YaHei"),
+                anchor_x="center"
+            )
+        
+        if self.defender_general:
+            arcade.draw_text(
+                f"将领: {self.defender_general.name}",
+                self.defender_positions[0][0], self.defender_positions[0][1] + 80,
+                GOLD, font_size=18, font_name=("SimHei", "Microsoft YaHei"),
+                anchor_x="center"
+            )
+    
+    def draw_battle_log(self):
+        """绘制战斗日志"""
+        # 绘制日志背景
+        arcade.draw_rectangle_filled(
+            self.window_size[0] - 200, self.window_size[1] // 2,
+            350, 400, (30, 30, 60, 180)
+        )
+        arcade.draw_rectangle_outline(
+            self.window_size[0] - 200, self.window_size[1] // 2,
+            350, 400, WHITE, 2
+        )
+        
+        # 绘制日志标题
+        arcade.draw_text(
+            "战斗日志",
+            self.window_size[0] - 200, self.window_size[1] // 2 + 180,
+            GOLD, font_size=24, font_name=("SimHei", "Microsoft YaHei"),
+            anchor_x="center"
+        )
+        
+        # 绘制日志内容 - 最多显示10条
+        log_y = self.window_size[1] // 2 + 150
+        for log in self.battle_log[-10:]:
+            arcade.draw_text(
+                log,
+                self.window_size[0] - 350, log_y,
+                WHITE, font_size=14, font_name=("SimHei", "Microsoft YaHei"),
+            )
+            log_y -= 30
     
     def on_mouse_motion(self, x, y, dx, dy):
         """处理鼠标移动"""
-        # ... 鼠标移动处理代码 ...
+        # 检查按钮悬停
+        for button in self.buttons:
+            button.check_mouse_hover(x, y)
     
     def on_mouse_press(self, x, y, button, modifiers):
         """处理鼠标点击"""
-        # ... 鼠标点击处理代码 ...
+        # 返回按钮
+        if self.buttons[0].check_mouse_press(x, y):
+            from three_kingdoms_arcade import MainMenuView
+            main_menu_view = MainMenuView(self.player.game)
+            self.window.show_view(main_menu_view)
     
     def on_key_press(self, key, modifiers):
         """处理键盘按键"""

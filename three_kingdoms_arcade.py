@@ -6,7 +6,9 @@ import os
 import time
 import math
 from three_kingdoms_game import ThreeKingdomsGame
-from gui.views import Button, BattleView, CityView
+from gui.ui.button import Button
+from gui.views.city_view import CityView
+from gui.views.battle_view import BattleView  # 直接从battle_view.py导入
 
 # 设置常量
 SCREEN_WIDTH = 1280
