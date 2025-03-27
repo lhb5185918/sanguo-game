@@ -4,7 +4,7 @@
 import arcade
 import random
 import math
-from models.army import TroopType, Terrain
+from models.army import TroopType, Terrain, Army
 from PIL import Image, ImageDraw
 from models.general import Skill  # 导入Skill枚举
 
@@ -42,6 +42,8 @@ class BattleView(arcade.View):
         self.phase_buttons = []
         self.animations = []
         self.animation_enabled = True  # 是否启用动画
+        self.current_round = 1  # 当前回合数
+        self.max_rounds = 5  # 最大回合数
         
         # 加载背景图
         try:
@@ -142,43 +144,39 @@ class BattleView(arcade.View):
         button_margin = 20
         
         # 添加下一阶段按钮
-        next_button = UIButton(
+        next_button = Button(
             self.window_size[0]/2 - button_width - button_margin,
             button_y,
             button_width, button_height,
-            "下一阶段", (180, 180, 220), (100, 100, 150),
-            text_color=WHITE, font_size=18
+            "下一阶段", text_color=WHITE, bg_color=(180, 180, 220), hover_color=(100, 100, 150)
         )
         self.phase_buttons.append(("next_phase", next_button))
         
         # 添加自动战斗按钮
-        auto_button = UIButton(
+        auto_button = Button(
             self.window_size[0]/2 + button_margin,
             button_y,
             button_width, button_height,
-            "自动战斗", (180, 220, 180), (100, 150, 100),
-            text_color=WHITE, font_size=18
+            "自动战斗", text_color=WHITE, bg_color=(180, 220, 180), hover_color=(100, 150, 100)
         )
         self.phase_buttons.append(("auto_battle", auto_button))
         
         # 添加撤退按钮
-        retreat_button = UIButton(
+        retreat_button = Button(
             self.window_size[0]/2 - button_width - button_margin,
             button_y - button_height - 10,
             button_width, button_height,
-            "撤退", (220, 180, 180), (150, 100, 100),
-            text_color=WHITE, font_size=18
+            "撤退", text_color=WHITE, bg_color=(220, 180, 180), hover_color=(150, 100, 100)
         )
         self.phase_buttons.append(("retreat", retreat_button))
         
         # 添加开关动画按钮
-        animation_button = UIButton(
+        animation_button = Button(
             self.window_size[0]/2 + button_margin,
             button_y - button_height - 10,
             button_width, button_height,
             "关闭动画" if self.animation_enabled else "开启动画",
-            (180, 180, 180), (120, 120, 120),
-            text_color=WHITE, font_size=18
+            text_color=WHITE, bg_color=(180, 180, 180), hover_color=(120, 120, 120)
         )
         self.phase_buttons.append(("toggle_animation", animation_button))
         
@@ -1042,10 +1040,12 @@ class BattleView(arcade.View):
             # 转换为arcade纹理
             self.default_general_texture = arcade.Texture("default_general", portrait_img)
         
-        # 获取进攻方和防守方将领
-        if self.game.player and hasattr(self.game.player, 'generals') and self.game.player.generals:
-            self.attacker_general = self.game.player.generals[0]  # 假设使用第一个将领
-            
+        # 设置将领属性
+        self.attacker_general = self.battle_data.attacker_general
+        self.defender_general = self.battle_data.defender_general
+        
+        # 如果有进攻方将领，加载其头像
+        if self.attacker_general:
             # 尝试加载将领头像
             if hasattr(self.attacker_general, 'image_path') and self.attacker_general.image_path:
                 try:
@@ -1055,23 +1055,20 @@ class BattleView(arcade.View):
             else:
                 self.general_portraits[self.attacker_general.name] = self.default_general_texture
         
-        # 示例敌方将领（实际应该从游戏中获取）
-        from models.general import General
-        self.defender_general = General(
-            name="敌军将领",
-            leadership=80,
-            strength=85,
-            intelligence=75,
-            politics=70,
-            charisma=65,
-            kingdom_name="敌军"
-        )
-        self.general_portraits[self.defender_general.name] = self.default_general_texture
-
+        # 如果有防守方将领，加载其头像
+        if self.defender_general:
+            if hasattr(self.defender_general, 'image_path') and self.defender_general.image_path:
+                try:
+                    self.general_portraits[self.defender_general.name] = arcade.load_texture(self.defender_general.image_path)
+                except:
+                    self.general_portraits[self.defender_general.name] = self.default_general_texture
+            else:
+                self.general_portraits[self.defender_general.name] = self.default_general_texture
+    
     def draw_animations(self):
         """绘制战斗动画效果"""
         # 只有在启用动画且有动画效果时才绘制
-        if not self.show_animations or not self.animations:
+        if not self.animation_enabled or not self.animations:
             return
             
         for animation in self.animations[:]:
@@ -1154,25 +1151,35 @@ class BattleView(arcade.View):
                         texture
                     )
                 else:
-                    arcade.draw_circle_filled(
+                    radius = 25 + 5 * math.sin(animation["progress"] * math.pi * 4)
+                    arcade.draw_circle_outline(
                         current_x, current_y, 
-                        20 + 5 * math.sin(animation["progress"] * math.pi * 4), 
-                        (200, 200, 255, 150)
+                        radius, 
+                        arcade.color.SILVER, 3
                     )
-                    
-            # 绘制粒子效果
+            
+            # 绘制粒子效果（如果有）
             if "particles" in animation:
-                for particle in animation["particles"]:
+                for particle in animation["particles"][:]:
+                    # 更新粒子位置
+                    particle["x"] += particle["dx"]
+                    particle["y"] += particle["dy"]
+                    particle["life"] -= 0.02
+                    
+                    # 移除已消失的粒子
+                    if particle["life"] <= 0:
+                        animation["particles"].remove(particle)
+                        continue
+                    
+                    # 绘制粒子
                     arcade.draw_circle_filled(
                         particle["x"], particle["y"],
-                        particle["size"],
-                        particle["color"]
+                        particle["size"] * particle["life"],
+                        (particle["color"][0], 
+                         particle["color"][1], 
+                         particle["color"][2], 
+                         int(255 * particle["life"]))
                     )
-                    
-                    # 更新粒子位置
-                    particle["x"] += particle["vx"]
-                    particle["y"] += particle["vy"]
-                    particle["size"] *= 0.95  # 粒子逐渐变小
 
     def draw_generals(self):
         """绘制将领信息"""
@@ -1461,7 +1468,7 @@ class BattleView(arcade.View):
             buffer = io.BytesIO()
             infantry_red.save(buffer, format="PNG")
             buffer.seek(0)
-            self.soldier_textures["infantry_red"] = arcade.Texture("infantry_red", infantry_red)
+            self.soldier_textures["infantry_red"] = arcade.load_texture_from_pil_image(infantry_red)
             
             # 步兵蓝色
             infantry_blue = Image.new("RGBA", (60, 60), (0, 0, 0, 0))
@@ -1472,7 +1479,7 @@ class BattleView(arcade.View):
             buffer = io.BytesIO()
             infantry_blue.save(buffer, format="PNG")
             buffer.seek(0)
-            self.soldier_textures["infantry_blue"] = arcade.Texture("infantry_blue", infantry_blue)
+            self.soldier_textures["infantry_blue"] = arcade.load_texture_from_pil_image(infantry_blue)
             
             # 骑兵红色 - 添加三角形表示马
             cavalry_red = Image.new("RGBA", (60, 65), (0, 0, 0, 0))
@@ -1486,7 +1493,7 @@ class BattleView(arcade.View):
             buffer = io.BytesIO()
             cavalry_red.save(buffer, format="PNG")
             buffer.seek(0)
-            self.soldier_textures["cavalry_red"] = arcade.Texture("cavalry_red", cavalry_red)
+            self.soldier_textures["cavalry_red"] = arcade.load_texture_from_pil_image(cavalry_red)
             
             # 骑兵蓝色
             cavalry_blue = Image.new("RGBA", (60, 65), (0, 0, 0, 0))
@@ -1497,7 +1504,7 @@ class BattleView(arcade.View):
             buffer = io.BytesIO()
             cavalry_blue.save(buffer, format="PNG")
             buffer.seek(0)
-            self.soldier_textures["cavalry_blue"] = arcade.Texture("cavalry_blue", cavalry_blue)
+            self.soldier_textures["cavalry_blue"] = arcade.load_texture_from_pil_image(cavalry_blue)
             
             # 弓兵红色 - 添加弓的图案
             archer_red = Image.new("RGBA", (60, 60), (0, 0, 0, 0))
@@ -1512,7 +1519,7 @@ class BattleView(arcade.View):
             buffer = io.BytesIO()
             archer_red.save(buffer, format="PNG")
             buffer.seek(0)
-            self.soldier_textures["archer_red"] = arcade.Texture("archer_red", archer_red)
+            self.soldier_textures["archer_red"] = arcade.load_texture_from_pil_image(archer_red)
             
             # 弓兵蓝色
             archer_blue = Image.new("RGBA", (60, 60), (0, 0, 0, 0))
@@ -1524,7 +1531,7 @@ class BattleView(arcade.View):
             buffer = io.BytesIO()
             archer_blue.save(buffer, format="PNG")
             buffer.seek(0)
-            self.soldier_textures["archer_blue"] = arcade.Texture("archer_blue", archer_blue)
+            self.soldier_textures["archer_blue"] = arcade.load_texture_from_pil_image(archer_blue)
             
             # 水军红色 - 添加波浪线
             navy_red = Image.new("RGBA", (60, 60), (0, 0, 0, 0))
@@ -1539,7 +1546,7 @@ class BattleView(arcade.View):
             buffer = io.BytesIO()
             navy_red.save(buffer, format="PNG")
             buffer.seek(0)
-            self.soldier_textures["navy_red"] = arcade.Texture("navy_red", navy_red)
+            self.soldier_textures["navy_red"] = arcade.load_texture_from_pil_image(navy_red)
             
             # 水军蓝色
             navy_blue = Image.new("RGBA", (60, 60), (0, 0, 0, 0))
@@ -1551,7 +1558,7 @@ class BattleView(arcade.View):
             buffer = io.BytesIO()
             navy_blue.save(buffer, format="PNG")
             buffer.seek(0)
-            self.soldier_textures["navy_blue"] = arcade.Texture("navy_blue", navy_blue)
+            self.soldier_textures["navy_blue"] = arcade.load_texture_from_pil_image(navy_blue)
             
         except Exception as e:
             print(f"创建士兵图片失败: {e}，将使用基本形状")
